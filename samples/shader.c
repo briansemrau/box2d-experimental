@@ -10,7 +10,11 @@
 #include "../src/core.h"
 
 #include <assert.h>
+#ifdef __EMSCRIPTEN__
+#include <GLES3/gl3.h>
+#else
 #include <glad/glad.h>
+#endif
 #include <stdio.h>
 
 #if defined( _MSC_VER )
@@ -19,6 +23,13 @@
 	#include <stdlib.h>
 #else
 	#include <stdlib.h>
+#endif
+
+#include <string.h>
+#ifdef __EMSCRIPTEN__
+#define SHADER_PREFIX "#version 300 es\nprecision mediump float;\n"
+#else
+#define SHADER_PREFIX "#version 330\n"
 #endif
 
 void DumpInfoGL()
@@ -86,7 +97,15 @@ void PrintLogGL( uint32_t object )
 static GLuint sCreateShaderFromString( const char* source, GLenum type )
 {
 	GLuint shader = glCreateShader( type );
-	const char* sources[] = { source };
+
+	size_t prefixSize = strlen(SHADER_PREFIX);
+	size_t size = strlen(source);
+	char* prefixedSource = malloc( prefixSize + size + 1 );
+	strcpy(prefixedSource, SHADER_PREFIX);
+	strcpy(prefixedSource + prefixSize, source);
+	prefixedSource[size + prefixSize] = 0;
+
+	const char* sources[] = { prefixedSource };
 
 	glShaderSource( shader, 1, sources, NULL );
 	glCompileShader( shader );
@@ -152,13 +171,15 @@ static GLuint sCreateShaderFromFile( const char* filename, GLenum type )
 	fseek( file, 0, SEEK_END );
 	long size = ftell( file );
 	fseek( file, 0, SEEK_SET );
-
-	char* source = malloc( size + 1 );
-	size_t count = fread( source, size, 1, file );
+	
+	size_t prefixSize = strlen(SHADER_PREFIX);
+	char* source = malloc( prefixSize + size + 1 );
+	strcpy(source, SHADER_PREFIX);
+	size_t count = fread( source + prefixSize, size, 1, file );
 	B2_UNUSED( count );
 	fclose( file );
 
-	source[size] = 0;
+	source[size + prefixSize] = '\0';
 
 	GLuint shader = glCreateShader( type );
 	const char* sources[] = { source };

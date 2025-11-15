@@ -18,8 +18,21 @@
 #include "box2d/box2d.h"
 #include "box2d/math_functions.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <functional>
+static std::function<void()> EmscriptenMainLoopFnP;
+static void EmscriptenMainLoop() { EmscriptenMainLoopFnP(); }
+#define EMSCRIPTEN_MAINLOOP_BEGIN EmscriptenMainLoopFnP = [&]()
+#define EMSCRIPTEN_MAINLOOP_END ; emscripten_set_main_loop(EmscriptenMainLoop, 0, true)
+#endif
+
 // clang-format off
+#ifndef __EMSCRIPTEN__
 #include "glad/glad.h"
+#else
+#include <GLES3/gl3.h>
+#endif
 #include "GLFW/glfw3.h"
 // clang-format on
 
@@ -29,6 +42,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <dirent.h>
 
 #ifdef BOX2D_PROFILE
 #include <tracy/Tracy.hpp>
@@ -140,6 +155,9 @@ static void CreateUI( GLFWwindow* window, const char* glslVersion )
 		printf( "ImGui_ImplGlfw_InitForOpenGL failed\n" );
 		assert( false );
 	}
+#ifdef __EMSCRIPTEN__
+	ImGui_ImplGlfw_InstallEmscriptenCallbacks(window, "#canvas");
+#endif
 
 	success = ImGui_ImplOpenGL3_Init( glslVersion );
 	if ( success == false )
@@ -560,7 +578,11 @@ int main( int, char** )
 	char buffer[128];
 
 	s_context.Load();
+#ifdef __EMSCRIPTEN__
+	s_context.workerCount = b2MinInt( 8, ((int)enki::GetNumHardwareThreads()-1) / 2 );
+#else
 	s_context.workerCount = b2MinInt( 8, (int)enki::GetNumHardwareThreads() / 2 );
+#endif
 
 	SortSamples();
 
@@ -578,10 +600,16 @@ int main( int, char** )
 	const char* glslVersion = nullptr;
 #endif
 
+#ifdef __EMSCRIPTEN__
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 2 ); // WebGL2
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 0 );
+	glfwWindowHint( GLFW_CLIENT_API, GLFW_OPENGL_ES_API );
+#else
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
 	glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+#endif
 
 	// MSAA
 	glfwWindowHint( GLFW_SAMPLES, 4 );
@@ -595,9 +623,12 @@ int main( int, char** )
 		glfwGetMonitorContentScale( primaryMonitor, &s_framebufferScale, &s_framebufferScale );
 #else
 		float uiScale = 1.0f;
+#ifndef __EMSCRIPTEN__ // deal with this later
 		glfwGetMonitorContentScale( primaryMonitor, &uiScale, &uiScale );
+#endif
 		s_context.uiScale = uiScale;
 #endif
+		printf("UI SCALE: %f\n", s_context.uiScale);
 	}
 
 	bool fullscreen = false;
@@ -621,12 +652,14 @@ int main( int, char** )
 	glfwMakeContextCurrent( s_context.window );
 
 	// Load OpenGL functions using glad
+#ifndef __EMSCRIPTEN__
 	if ( !gladLoadGL() )
 	{
 		fprintf( stderr, "Failed to initialize glad\n" );
 		glfwTerminate();
 		return -1;
 	}
+#endif
 
 	{
 		const char* glVersionString = (const char*)glGetString( GL_VERSION );
@@ -651,7 +684,11 @@ int main( int, char** )
 
 	float frameTime = 0.0;
 
+#ifdef __EMSCRIPTEN__
+	EMSCRIPTEN_MAINLOOP_BEGIN
+#else
 	while ( !glfwWindowShouldClose( s_context.window ) )
+#endif
 	{
 		double time1 = glfwGetTime();
 
@@ -750,6 +787,9 @@ int main( int, char** )
 
 		frameTime = float( time2 - time1 );
 	}
+#ifdef __EMSCRIPTEN__
+	EMSCRIPTEN_MAINLOOP_END;
+#endif
 
 	delete s_sample;
 	s_sample = nullptr;

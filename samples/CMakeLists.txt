@@ -17,14 +17,16 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "GLFW Examples")
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "GLFW Tests")
 set(GLFW_INSTALL OFF CACHE BOOL "GLFW Install")
 
-FetchContent_Declare(
-	glfw
-	GIT_REPOSITORY https://github.com/glfw/glfw.git
-	GIT_TAG 3.4
-	GIT_SHALLOW TRUE
-	GIT_PROGRESS TRUE
-)
-FetchContent_MakeAvailable(glfw)
+if (NOT EMSCRIPTEN)
+	FetchContent_Declare(
+		glfw
+		GIT_REPOSITORY https://github.com/glfw/glfw.git
+		GIT_TAG 3.4
+		GIT_SHALLOW TRUE
+		GIT_PROGRESS TRUE
+	)
+	FetchContent_MakeAvailable(glfw)
+endif()
 
 # imgui and glfw backend for GUI
 # https://gist.github.com/jeffamstutz/992723dfabac4e3ffff265eb71a24cd9
@@ -60,6 +62,7 @@ set_target_properties(imgui PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+target_compile_options(imgui PRIVATE -w)
 
 # jsmn for json
 set(JSMN_DIR ${CMAKE_SOURCE_DIR}/extern/jsmn)
@@ -101,6 +104,14 @@ set(BOX2D_SAMPLE_FILES
 	stb_truetype.h
 )
 
+if (EMSCRIPTEN)
+	set(SAMPLES_EMSCRIPTEN_COMPILER_FLAGS --use-port=contrib.glfw3) # -pthread -s USE_PTHREADS=1 
+	set(SAMPLES_EMSCRIPTEN_LINKER_FLAGS ${SAMPLES_EMSCRIPTEN_COMPILER_FLAGS} -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sPTHREAD_POOL_SIZE="navigator.hardwareConcurrency-1" --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/samples.html) # -sPTHREAD_POOL_DELAY_LOAD
+	add_compile_options(${SAMPLES_EMSCRIPTEN_COMPILER_FLAGS})
+	add_link_options(${SAMPLES_EMSCRIPTEN_LINKER_FLAGS})
+	set(CMAKE_EXECUTABLE_SUFFIX ".html")
+endif()
+
 add_executable(samples ${BOX2D_SAMPLE_FILES})
 
 set_target_properties(samples PROPERTIES
@@ -112,6 +123,7 @@ set_target_properties(samples PROPERTIES
 if (BOX2D_COMPILE_WARNING_AS_ERROR)
 	set_target_properties(samples PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 endif()
+target_compile_options(samples PRIVATE -Wno-nontrivial-memcall)
 
 target_include_directories(samples PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${JSMN_DIR})
 target_link_libraries(samples PUBLIC box2d shared imgui glfw glad enkiTS)
@@ -121,10 +133,14 @@ target_link_libraries(samples PUBLIC box2d shared imgui glfw glad enkiTS)
 # message(STATUS "binary = ${CMAKE_CURRENT_BINARY_DIR}")
 
 # Copy font files, etc
+if (NOT EMSCRIPTEN)
 add_custom_command(
 	TARGET samples POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_directory
 			${CMAKE_CURRENT_SOURCE_DIR}/data/
-			${CMAKE_CURRENT_BINARY_DIR}/data/)
+			${CMAKE_CURRENT_BINARY_DIR}/data)
+else()
+	target_link_options(samples PRIVATE --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/data@/samples/data)
+endif()
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${BOX2D_SAMPLE_FILES})

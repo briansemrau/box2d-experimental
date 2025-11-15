@@ -25,7 +25,11 @@
 #endif
 
 // clang-format off
+#ifndef __EMSCRIPTEN__
 #include <glad/glad.h>
+#else
+#include <GLES3/gl3.h>
+#endif
 #include <GLFW/glfw3.h>
 // clang-format on
 
@@ -37,8 +41,6 @@
 //#include "stb_image_write.h"
 
 #define BUFFER_OFFSET( x ) ( (const void*)( x ) )
-
-#define SHADER_TEXT( x ) "#version 330\n" #x
 
 typedef struct
 {
@@ -577,7 +579,9 @@ void FlushPoints( PointRender* render, Camera* camera )
 	glBindVertexArray( render->vaoId );
 
 	glBindBuffer( GL_ARRAY_BUFFER, render->vboId );
+#ifndef __EMSCRIPTEN__
 	glEnable( GL_PROGRAM_POINT_SIZE );
+#endif
 
 	int base = 0;
 	while ( count > 0 )
@@ -592,7 +596,9 @@ void FlushPoints( PointRender* render, Camera* camera )
 		base += POINT_BATCH_SIZE;
 	}
 
+#ifndef __EMSCRIPTEN__
 	glDisable( GL_PROGRAM_POINT_SIZE );
+#endif
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	glBindVertexArray( 0 );
 	glUseProgram( 0 );

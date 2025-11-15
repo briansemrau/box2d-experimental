@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Erin Catto
 // SPDX-License-Identifier: MIT
 
-#version 330 core
 
 layout (location = 0) in vec2 aPosition;
 layout (location = 1) in vec2 aUV;

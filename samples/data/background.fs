@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Erin Catto
 // SPDX-License-Identifier: MIT
 
-#version 330
 
 out vec4 FragColor;
 

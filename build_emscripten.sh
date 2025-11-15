@@ -6,5 +6,6 @@
 rm -rf build
 mkdir build
 cd build
-emcmake cmake -DBOX2D_VALIDATE=OFF -DBOX2D_UNIT_TESTS=ON -DBOX2D_SAMPLES=OFF -DCMAKE_BUILD_TYPE=Debug ..
+
+emcmake.bat cmake -DBOX2D_VALIDATE=OFF -DBOX2D_UNIT_TESTS=OFF -DBOX2D_SAMPLES=ON -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build .

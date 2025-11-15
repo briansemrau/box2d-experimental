@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Erin Catto
 // SPDX-License-Identifier: MIT
 
-#version 330
 
 uniform mat4 projectionMatrix;
 layout(location = 0) in vec2 v_position;
